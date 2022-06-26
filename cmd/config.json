@@ -1,0 +1,13 @@
+{
+  "watermark": {
+    "marks": [
+      {
+        "File": "X:\\MyProject\\Go\\src\\volts-dev\\watermark\\cmd\\watermark.png",
+        "Opacity": 30,
+        "SizeRate": 30,
+        "Position": "Center",
+        "Image": null
+      }
+    ]
+  }
+}

@@ -15,81 +15,55 @@ import (
 
 	"github.com/chai2010/webp"
 	"github.com/nfnt/resize"
+	"github.com/oliamb/cutter"
 	//"golang.org/x/image/webp"
 )
 
-// 水印的位置
-const (
-	TopLeft Pos = iota
-	TopMiddle
-	TopRight
-	BottomLeft
-	BottomMiddle
-	BottomRight
-	Center
-)
-
 type (
-	Pos       int
 	watermark struct {
-		Config   *Config
-		image    image.Image // 水印图片
-		Position Pos
-		padding  int
+		Config *Config
+		//image    image.Image // 水印图片
+
+		padding int
 	}
 )
 
 func New(opts ...Option) (*watermark, error) {
 	cfg := newConfig(opts...)
 
-	f, err := os.Open(cfg.WaterMarkFile)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
+	for _, mk := range cfg.Marks {
+		f, err := os.Open(mk.File)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
 
-	var img image.Image
-	var gifImg *gif.GIF
-	switch strings.ToLower(filepath.Ext(cfg.WaterMarkFile)) {
-	case ".jpg", ".jpeg":
-		img, err = jpeg.Decode(f)
-	case ".png":
-		img, err = png.Decode(f)
-	case ".gif":
-		gifImg, err = gif.DecodeAll(f)
-		img = gifImg.Image[0]
-	default:
-		return nil, ErrUnsupportedWatermarkType
-	}
+		var img image.Image // 水印图片
+		var gifImg *gif.GIF
+		switch strings.ToLower(filepath.Ext(mk.File)) {
+		case ".jpg", ".jpeg":
+			img, err = jpeg.Decode(f)
+		case ".png":
+			img, err = png.Decode(f)
+		case ".gif":
+			gifImg, err = gif.DecodeAll(f)
+			img = gifImg.Image[0]
+		default:
+			return nil, ErrUnsupportedWatermarkType
+		}
 
-	if err != nil {
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
+
+		mk.Image = img
 	}
 
 	wm := &watermark{
-		Config:   cfg,
-		image:    img,
-		Position: Center,
+		Config: cfg,
+		//Position: Center,
 	}
-	/*
-		imgb, _ := os.Open("image.jpg")
-		img, _ := jpeg.Decode(imgb)
-		defer imgb.Close()
 
-		wmb, _ := os.Open("watermark.png")
-		watermark, _ := png.Decode(wmb)
-		defer wmb.Close()
-
-		offset := image.Pt(200, 200)
-		b := img.Bounds()
-		m := image.NewRGBA(b)
-		draw.Draw(m, b, img, image.ZP, draw.Src)
-		draw.Draw(m, watermark.Bounds().Add(offset), watermark, image.ZP, draw.Over)
-
-		imgw, _ := os.Create("watermarked.jpg")
-		jpeg.Encode(imgw, m, &jpeg.Options{jpeg.DefaultQuality})
-		defer imgw.Close()
-	*/
 	return wm, nil
 }
 
@@ -99,8 +73,7 @@ func (self *watermark) Mark(src io.ReadWriteSeeker, ext string, opts ...Option) 
 	ext = strings.ToLower(ext)
 	switch ext {
 	case ".webp":
-		//	x, x1 := webp.Decode(src)
-		srcImg, err = webp.Decode(src) // image.Image(x), x1
+		srcImg, err = webp.Decode(src)
 	case ".gif":
 		//return w.markGIF(src) // GIF 另外单独处理
 	case ".jpg", ".jpeg":
@@ -119,30 +92,26 @@ func (self *watermark) Mark(src io.ReadWriteSeeker, ext string, opts ...Option) 
 	if err != nil {
 		return nil, err
 	}
+	dstImg := image.NewNRGBA64(srcImg.Bounds())
+	draw.Draw(dstImg, dstImg.Rect, srcImg, dstImg.Rect.Min, draw.Src) // 画布
+	for _, mk := range self.Config.Marks {
+		// 伸缩水印大小
+		var scalerate float64 = 1.0
+		if mk.Image.Bounds().Max.X < mk.Image.Bounds().Max.Y {
+			scalerate = float64(mk.Image.Bounds().Dy()) / (float64(srcImg.Bounds().Dy()) * (float64(mk.SizeRate) * 0.01))
+		} else if mk.Image.Bounds().Max.X > mk.Image.Bounds().Max.Y {
+			scalerate = float64(mk.Image.Bounds().Dx()) / (float64(srcImg.Bounds().Dx()) * (float64(mk.SizeRate) * 0.01))
 
-	// 伸缩水印大小
-	var rate float64 = 1.0
-	//bigint := self.image.Bounds().Max.X
-	if self.image.Bounds().Max.X < self.image.Bounds().Max.Y {
-		//	bigint = self.image.Bounds().Max.Y
-		rate = float64(self.image.Bounds().Dy()) / (float64(srcImg.Bounds().Dy()) * (float64(self.Config.SizeRate) * 0.01))
-	} else if self.image.Bounds().Max.X > self.image.Bounds().Max.Y {
-		rate = float64(self.image.Bounds().Dx()) / (float64(srcImg.Bounds().Dx()) * (float64(self.Config.SizeRate) * 0.01))
+		}
+
+		heigh := uint(math.Ceil(float64(mk.Image.Bounds().Dy()) / scalerate))
+		width := uint(math.Ceil(float64(mk.Image.Bounds().Dx()) / scalerate))
+		mark := resize.Resize(width, heigh, mk.Image, resize.Lanczos3)
+		point := self.getPoint(srcImg, mark, mk.Position)
+
+		draw.DrawMask(dstImg, dstImg.Bounds(), mark, point, image.NewUniform(color.Alpha{uint8(float32(mk.Opacity) * 2.55)}), point, draw.Over)
 
 	}
-
-	heigh := uint(math.Ceil(float64(self.image.Bounds().Dy()) / rate))
-	width := uint(math.Ceil(float64(self.image.Bounds().Dx()) / rate))
-	mark := resize.Resize(width, heigh, self.image, resize.Lanczos3)
-	point := self.getPoint(srcImg, mark)
-
-	//	if err = self.checkTooLarge(point, bound); err != nil {
-	//		return err
-	//	}
-
-	dstImg := image.NewNRGBA64(srcImg.Bounds())
-	draw.Draw(dstImg, dstImg.Bounds(), srcImg, image.Point{}, draw.Over)
-	draw.DrawMask(dstImg, dstImg.Bounds(), mark, point, image.NewUniform(color.Alpha{uint8(float32(self.Config.Opacity) * 2.55)}), point, draw.Over)
 	if _, err = src.Seek(0, 0); err != nil {
 		return nil, err
 	}
@@ -150,24 +119,6 @@ func (self *watermark) Mark(src io.ReadWriteSeeker, ext string, opts ...Option) 
 	return &output{
 		buf: dstImg,
 	}, nil
-
-	/*
-		imgw, _ := os.Create(fmt.Sprintf("watermarked_%s.jpg", "marked"))
-		defer imgw.Close()
-		switch ext {
-		case ".webp":
-			//return webp.Encode(imgw, dstImg, &webp.Options{Lossless: true})
-			return jpeg.Encode(imgw, dstImg, &jpeg.Options{jpeg.DefaultQuality})
-
-		case ".jpg", ".jpeg":
-			//	 jpeg.Encode(src, dstImg, nil)
-			return jpeg.Encode(imgw, dstImg, &jpeg.Options{jpeg.DefaultQuality})
-		case ".png":
-			return png.Encode(imgw, dstImg)
-		default:
-			return ErrUnsupportedWatermarkType
-		}
-	*/
 }
 
 // MarkFile 给指定的文件打上水印
@@ -181,66 +132,116 @@ func (self *watermark) MarkFile(path string, opts ...Option) (*output, error) {
 	return self.Mark(file, strings.ToLower(filepath.Ext(path)), opts...)
 }
 
-func (self *watermark) checkTooLarge(start image.Point, dst image.Rectangle) error {
-	// 允许的最大高宽
-	width := dst.Dx() - start.X - self.padding
-	height := dst.Dy() - start.Y - self.padding
-
-	if width < self.image.Bounds().Dx() || height < self.image.Bounds().Dy() {
-		return ErrWatermarkTooLarge
+func Max(a, b int) int {
+	if a > b {
+		return a
 	}
-	return nil
+
+	return b
 }
 
+// TODO 实现尺寸比例
 func (self *watermark) resize(img image.Image) (image.Image, error) {
-	var heightwidth uint
+	var miniEdge int
+	/*var Width, Height int
+	if self.Config.Height == self.Config.Width { // 如果是正方形1:1比例切割
+
+		if img.Bounds().Dx() > img.Bounds().Dy() {
+			// Set the expected size that you want:
+			miniEdge = img.Bounds().Dy()
+		} else {
+			miniEdge = img.Bounds().Dx()
+		}
+		Width, Height = miniEdge, miniEdge
+	} else {
+		// 如果要求比例高大于宽
+		if self.Config.Height > self.Config.Width {
+			rate := (img.Bounds().Dy() / self.Config.Height)
+			if img.Bounds().Dx() > img.Bounds().Dy() {
+				// 当比例高最大且实图高最小时 高不变计算宽度
+				Width = rate * self.Config.Height
+				Height = rate * self.Config.Width
+			} else if img.Bounds().Dx() < img.Bounds().Dy() {
+				Height = rate * self.Config.Height
+				Width = rate * self.Config.Width
+			}
+		} else {
+			rate := (img.Bounds().Dx() / self.Config.Height)
+			if img.Bounds().Dx() > img.Bounds().Dy() {
+				// 当比例高最大且实图高最小时 高不变计算宽度
+				Width = rate * self.Config.Height
+				Height = rate * self.Config.Width
+			} else if img.Bounds().Dx() < img.Bounds().Dy() {
+				Height = rate * self.Config.Height
+				Width = rate * self.Config.Width
+			}
+		}
+
+	}
+	*/
 	if img.Bounds().Dx() > img.Bounds().Dy() {
 		// Set the expected size that you want:
-		heightwidth = uint(img.Bounds().Dy())
+		miniEdge = img.Bounds().Dy()
 	} else if img.Bounds().Dx() < img.Bounds().Dy() {
-		heightwidth = uint(img.Bounds().Dx())
+		miniEdge = img.Bounds().Dx()
 	}
-
 	// resize to width 1000 using Lanczos resampling
 	// and preserve aspect ratio
-	dst := resize.Resize(heightwidth, heightwidth, img, resize.Lanczos3)
+	//dst := resize.Resize(heightwidth, heightwidth, img, resize.Lanczos3)
 
-	return dst, nil
+	return cutter.Crop(img, cutter.Config{
+		Width:   miniEdge,
+		Height:  miniEdge,
+		Mode:    cutter.Centered,
+		Options: cutter.Ratio & cutter.Copy, // Copy is useless here
+	})
 }
 
-func (self *watermark) getPoint(src, mark image.Image) image.Point {
+func (self *watermark) getPoint(src, mark image.Image, pos string) image.Point {
 	width := src.Bounds().Dx()
 	height := src.Bounds().Dy()
 	var point image.Point
-	switch self.Position {
-	case TopLeft:
+	switch strings.ToLower(pos) {
+	case "top_left":
 		point = image.Point{X: -self.padding, Y: -self.padding}
-	case TopMiddle:
+	case "top_middle":
 		point = image.Point{
-			X: -self.padding,
-			Y: -(height - self.padding - mark.Bounds().Dy()) / 2,
+			//X: -self.padding,
+			//Y: -(height - self.padding - mark.Bounds().Dy()) / 2,
+			X: -(width - self.padding - mark.Bounds().Dx()) / 2,
+			Y: -self.padding,
 		}
-	case TopRight:
+	case "top_right":
 		point = image.Point{
 			X: -(width - self.padding - mark.Bounds().Dx()),
 			Y: -self.padding,
 		}
-	case BottomLeft:
+	case "bottom_left":
 		point = image.Point{
 			X: -self.padding,
 			Y: -(height - self.padding - mark.Bounds().Dy()),
 		}
-	case BottomMiddle:
+	case "bottom_middle":
 		point = image.Point{
-			X: -self.padding,
-			Y: -(height - self.padding - mark.Bounds().Dy()) / 2,
+			X: -(width - self.padding - mark.Bounds().Dx()) / 2,
+			Y: -(height - self.padding - mark.Bounds().Dy()),
 		}
-	case BottomRight:
+	case "bottom_right":
 		point = image.Point{
 			X: -(width - self.padding - mark.Bounds().Dx()),
 			Y: -(height - self.padding - mark.Bounds().Dy()),
 		}
-	case Center:
+	case "right_middle":
+		point = image.Point{
+			X: -(width - self.padding - mark.Bounds().Dx()),
+			Y: -(height - self.padding - mark.Bounds().Dy()) / 2,
+		}
+	case "left_middle":
+		point = image.Point{
+			X: -self.padding,
+			Y: -(height - self.padding - mark.Bounds().Dy()) / 2,
+		}
+	case "center":
 		point = image.Point{
 			X: -(width - self.padding - mark.Bounds().Dx()) / 2,
 			Y: -(height - self.padding - mark.Bounds().Dy()) / 2,
