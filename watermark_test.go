@@ -6,7 +6,7 @@ func Test1(t *testing.T) {
 	img, err := New(
 		// NOTE 添加修正DEBUG编译文件路径失败！
 		WithMark(&mark{
-			File:     "./watermark.png",
+			File:     "./frame.png",
 			Opacity:  30,
 			SizeRate: 30,
 			Position: "Center",
@@ -17,5 +17,5 @@ func Test1(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	img.MarkFile("test.jpg")
+	img.MarkFile("test.webp")
 }

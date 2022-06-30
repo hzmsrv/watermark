@@ -7,6 +7,7 @@ import (
 	"image/png"
 
 	"github.com/chai2010/webp"
+	//"golang.org/x/image/webp"
 )
 
 type (
@@ -42,6 +43,7 @@ func (self *output) AsPng() (*bytes.Buffer, error) {
 func (self *output) AsWebp() (*bytes.Buffer, error) {
 	buf := bytes.NewBuffer([]byte{})
 	err := webp.Encode(buf, self.buf, &webp.Options{Lossless: true})
+	//err := jpeg.Encode(buf, self.buf, &jpeg.Options{Quality: jpeg.DefaultQuality})
 	if err != nil {
 		return nil, err
 	}

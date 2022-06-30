@@ -32,7 +32,7 @@ func New(opts ...Option) (*watermark, error) {
 	cfg := newConfig(opts...)
 
 	for _, mk := range cfg.Marks {
-		f, err := os.Open(mk.File)
+		f, err := os.Open(filepath.Join(cfg.AppPath, mk.File))
 		if err != nil {
 			return nil, err
 		}
@@ -61,7 +61,6 @@ func New(opts ...Option) (*watermark, error) {
 
 	wm := &watermark{
 		Config: cfg,
-		//Position: Center,
 	}
 
 	return wm, nil
@@ -96,12 +95,14 @@ func (self *watermark) Mark(src io.ReadWriteSeeker, ext string, opts ...Option) 
 	draw.Draw(dstImg, dstImg.Rect, srcImg, dstImg.Rect.Min, draw.Src) // 画布
 	for _, mk := range self.Config.Marks {
 		// 伸缩水印大小
-		var scalerate float64 = 1.0
+		var scalerate float64
 		if mk.Image.Bounds().Max.X < mk.Image.Bounds().Max.Y {
 			scalerate = float64(mk.Image.Bounds().Dy()) / (float64(srcImg.Bounds().Dy()) * (float64(mk.SizeRate) * 0.01))
 		} else if mk.Image.Bounds().Max.X > mk.Image.Bounds().Max.Y {
 			scalerate = float64(mk.Image.Bounds().Dx()) / (float64(srcImg.Bounds().Dx()) * (float64(mk.SizeRate) * 0.01))
-
+		} else {
+			// 保持和原图1:1比率
+			scalerate = float64(mk.Image.Bounds().Dy()) / float64(srcImg.Bounds().Dy())
 		}
 
 		heigh := uint(math.Ceil(float64(mk.Image.Bounds().Dy()) / scalerate))
@@ -182,7 +183,7 @@ func (self *watermark) resize(img image.Image) (image.Image, error) {
 	if img.Bounds().Dx() > img.Bounds().Dy() {
 		// Set the expected size that you want:
 		miniEdge = img.Bounds().Dy()
-	} else if img.Bounds().Dx() < img.Bounds().Dy() {
+	} else {
 		miniEdge = img.Bounds().Dx()
 	}
 	// resize to width 1000 using Lanczos resampling
@@ -204,7 +205,7 @@ func (self *watermark) getPoint(src, mark image.Image, pos string) image.Point {
 	switch strings.ToLower(pos) {
 	case "top_left":
 		point = image.Point{X: -self.padding, Y: -self.padding}
-	case "top_middle":
+	case "top_center":
 		point = image.Point{
 			//X: -self.padding,
 			//Y: -(height - self.padding - mark.Bounds().Dy()) / 2,
@@ -221,7 +222,7 @@ func (self *watermark) getPoint(src, mark image.Image, pos string) image.Point {
 			X: -self.padding,
 			Y: -(height - self.padding - mark.Bounds().Dy()),
 		}
-	case "bottom_middle":
+	case "bottom_center":
 		point = image.Point{
 			X: -(width - self.padding - mark.Bounds().Dx()) / 2,
 			Y: -(height - self.padding - mark.Bounds().Dy()),
@@ -231,12 +232,12 @@ func (self *watermark) getPoint(src, mark image.Image, pos string) image.Point {
 			X: -(width - self.padding - mark.Bounds().Dx()),
 			Y: -(height - self.padding - mark.Bounds().Dy()),
 		}
-	case "right_middle":
+	case "right_center":
 		point = image.Point{
 			X: -(width - self.padding - mark.Bounds().Dx()),
 			Y: -(height - self.padding - mark.Bounds().Dy()) / 2,
 		}
-	case "left_middle":
+	case "left_center":
 		point = image.Point{
 			X: -self.padding,
 			Y: -(height - self.padding - mark.Bounds().Dy()) / 2,

@@ -1,0 +1,20 @@
+{
+  "watermark": {
+    "marks": [
+      {
+        "File": "/logo.png",
+        "Opacity": 30,
+        "SizeRate": 30,
+        "Position": "Center",
+        "Image": null
+      },
+   {
+        "File": "/frame.png",
+        "Opacity": 100,
+        "SizeRate": 100,
+        "Position": "Center",
+        "Image": null
+      }
+    ]
+  }
+}

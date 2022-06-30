@@ -2,9 +2,16 @@
   "watermark": {
     "marks": [
       {
-        "File": "X:\\MyProject\\Go\\src\\volts-dev\\watermark\\cmd\\watermark.png",
+        "File": "/logo.png",
         "Opacity": 30,
         "SizeRate": 30,
+        "Position": "Center",
+        "Image": null
+      },
+   {
+        "File": "/frame.png",
+        "Opacity": 100,
+        "SizeRate": 100,
         "Position": "Center",
         "Image": null
       }

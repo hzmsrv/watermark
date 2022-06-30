@@ -8,8 +8,6 @@ import (
 	"time"
 	"volts-dev/watermark"
 
-	//"volts-dev/watermark"
-
 	"github.com/volts-dev/volts/logger"
 )
 
@@ -21,20 +19,20 @@ func main() {
 	if time.Now().Year() == 2023 {
 		return
 	}
-	//logg, _ := os.Create("./log")
-	//defer logg.Close()
-
+	logg, _ := os.Create("./README.txt")
+	defer logg.Close()
 	// First element in os.Args is always the program name,
 	// So we need at least 2 arguments to have a file name argument.
 	if len(os.Args) < 2 {
-		fmt.Println("Missing parameter, provide file name!")
+		//fmt.Println("Missing parameter, provide file name!")
+		logg.WriteString(time.Now().String() + "" + "Missing parameter, provide file name!\n")
 		return
 	}
 	file := os.Args[1]
 	fp := filepath.Dir(file)
 	fileName := filepath.Base(file)
-	fmt.Println(file)
-	fmt.Println(fp, " ", fileName)
+	//fmt.Println(file)
+	//fmt.Println(fp, " ", fileName)
 	//logg.WriteString(file)
 	//	logg.WriteString(fp)
 	//logg.WriteString(fileName)
@@ -57,8 +55,12 @@ func main() {
 		//logg.WriteString(err.Error())
 	}
 
-	fp = filepath.Join(fp, fmt.Sprintf("%s_%s%s", strings.Split(fileName, ".")[0], "marked", filepath.Ext(file)))
-	fmt.Println(fp)
+	//ext := filepath.Ext(file)
+	//if ext == ".webp" {
+	//	ext = ".jpg"
+	//}
+	fp = filepath.Join(fp, fmt.Sprintf("%s_%s%s", strings.Split(fileName, ".")[0], "marked", ".jpg"))
+	//fmt.Println(fp)
 
 	imgw, _ := os.Create(fp)
 	defer imgw.Close()

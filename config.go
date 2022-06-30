@@ -93,19 +93,19 @@ func newConfig(opts ...Option) *Config {
 	}
 	cfg.Init(opts...)
 	err = cfg.Load(filepath.Join(exPath, config.CONFIG_FILE_NAME))
-	if err != nil {
+	if err == nil {
 		log.Err(err)
 	}
 
 	err = cfg.UnmarshalField("watermark", &cfg)
 	if err != nil {
 		log.Err(err)
-	}
 
+	}
 	//cfg.UnmarshalField("marks", &cfg.Marks)
 	if len(cfg.Marks) == 0 {
 		cfg.Marks = []*mark{{
-			File:     filepath.Join(exPath, "/watermark.png"),
+			File:     "/watermark.png",
 			Opacity:  30,
 			SizeRate: 30,
 			Position: "Center",
