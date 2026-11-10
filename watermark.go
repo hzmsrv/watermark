@@ -30,8 +30,8 @@ type (
 
 func New(opts ...Option) (*watermark, error) {
 	cfg := newConfig(opts...)
-
-	for _, mk := range cfg.Marks {
+	cfg.Config.Load()
+	for idx, mk := range cfg.Marks {
 		f, err := os.Open(filepath.Join(cfg.AppPath, mk.File))
 		if err != nil {
 			return nil, err
@@ -56,7 +56,7 @@ func New(opts ...Option) (*watermark, error) {
 			return nil, err
 		}
 
-		mk.Image = img
+		cfg.Marks[idx].Image = img
 	}
 
 	wm := &watermark{

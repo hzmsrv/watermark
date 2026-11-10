@@ -11,14 +11,14 @@ func index(ctx *router.THttpContext) {
 	ctx.RenderTemplate("/watermark/index.html", nil)
 }
 
-func main() {
+func xmain() {
 	r := router.New()
 	r.Url("GET", "/", index)
 	srv := server.New(
 		server.Router(r),
 	)
 
-	srv.Init(
+	srv.Config().Init(
 		server.Debug(),
 	)
 
